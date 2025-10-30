@@ -1,8 +1,10 @@
-# grain - package manager for steel
+# grain - package manager for steel (IDEA - future)
 
 **team**: teamtreasure02 (taurus ♉ - building blocks)  
 **purpose**: install, manage, and distribute Steel modules  
-**status**: MVP specification, prototype in progress! 🌾⚒️
+**status**: ⚠️ **IDEA** - defer until after Redox OS mastery! 🏔️  
+**priority**: Redox OS > package management  
+**decomplection**: needs refactor to use function-box-* pattern (see below)
 
 ---
 
@@ -319,7 +321,137 @@ grain update grainorder
 
 ---
 
-## implementation: rust CLI
+## decomplected architecture (when we build this!)
+
+**current design in this README is MONOLITHIC** ❌  
+**needs refactoring to grain module convention** ✅
+
+### proper structure (future):
+
+```
+grain-idea/
+├── src/
+│   ├── main.rs                    (coordinator - thin layer!)
+│   ├── grain_install.rs           (installation flow)
+│   ├── grain_registry.rs          (registry interaction)
+│   ├── grain_specs.rs             (validation & types)
+│   ├── function_box_git.rs        (git operations 🎁)
+│   ├── function_box_filesystem.rs (file operations 🎁)
+│   ├── function_box_http.rs       (HTTP/registry 🎁)
+│   └── function_box_toml.rs       (grain.toml parsing 🎁)
+├── readme.md
+├── Cargo.toml
+└── license*.md
+```
+
+### function boxes (Rust modules):
+
+**function_box_git.rs** - git operations
+```rust
+pub fn clone_repo(org: &str, repo: &str, dest: &Path) -> Result<()>;
+pub fn checkout_branch(repo: &Path, branch: &str) -> Result<()>;
+pub fn fetch_remote(repo: &Path) -> Result<()>;
+```
+
+**function_box_filesystem.rs** - file operations
+```rust
+pub fn create_module_dir(module: &str) -> Result<PathBuf>;
+pub fn copy_tree(src: &Path, dest: &Path) -> Result<()>;
+pub fn list_modules() -> Result<Vec<String>>;
+```
+
+**function_box_http.rs** - HTTP/registry
+```rust
+pub fn fetch_registry() -> Result<Registry>;
+pub fn resolve_module(name: &str, registry: &Registry) -> Result<ModuleInfo>;
+```
+
+**function_box_toml.rs** - grain.toml
+```rust
+pub fn parse_grain_toml(path: &Path) -> Result<GrainConfig>;
+pub fn list_dependencies(config: &GrainConfig) -> Vec<Dependency>;
+```
+
+### main.rs (just coordination):
+
+```rust
+// main.rs - THIN coordinator!
+match cli.command {
+    Commands::Install { module } => {
+        // 1. resolve module (function-box-http)
+        let info = function_box_http::resolve_module(&module, &registry)?;
+        
+        // 2. clone repo (function-box-git)
+        let repo = function_box_git::clone_repo(&info.org, &info.repo, &dest)?;
+        
+        // 3. copy to modules dir (function-box-filesystem)
+        function_box_filesystem::copy_tree(&repo, &module_dir)?;
+        
+        println!("✅ installed {}!", module);
+    }
+}
+```
+
+**each function box has ONE domain!**  
+**main.rs just calls them!**  
+**this is decomplected!** ⚒️🎁
+
+---
+
+## why defer this until post-Redox?
+
+### priority: foundational > convenience
+
+1. **Redox OS** = sovereign computing foundation
+2. **grain package manager** = convenient distribution
+
+**learn the OS first, then optimize distribution!**
+
+### we can use grain modules without a package manager:
+
+```bash
+# manual installation works fine:
+git clone https://github.com/teamtreasure02/grainorder
+cd grainorder
+steel grainorder-test.scm  # works!
+```
+
+**grain PM makes it EASIER, not POSSIBLE!**
+
+### when to build grain:
+
+- ✅ after mastering Redox OS (weeks 1-4)
+- ✅ after running grain modules on Redox (weeks 5-8)  
+- ✅ when distribution becomes a bottleneck (weeks 9+)
+
+**for now: focus on Redox!** 🏔️🦀
+
+---
+
+## related: grainsteel-idea
+
+**grainsteel** = system packages wrapper for grain
+
+```
+User runs: brew install grainsteel
+           ↓
+grainsteel-setup installs: cargo install grain
+           ↓
+User types: grain install grainorder
+           ↓
+grain (this repo) does the work!
+```
+
+**relationship:**
+- `grain` (this repo) = core package manager
+- `grainsteel` = system package wrapper + smart setup
+- both are IDEAs until post-Redox!
+
+see: https://github.com/teamtreasure02/grainsteel-idea
+
+---
+
+## implementation: rust CLI (original monolithic design)
 
 ### grain CLI structure
 
